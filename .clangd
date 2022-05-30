@@ -1,0 +1,6 @@
+CompileFlags:
+  CompilationDatabase: Ancestors
+Diagnostics:
+  ClangTidy:
+    Add: *
+  UnusedIncludes: Strict
