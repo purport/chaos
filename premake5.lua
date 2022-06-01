@@ -17,10 +17,10 @@ workspace "Project"
 
   include "chaos"
 
-  project "hello-world"
+  project "game-theory"
     kind "ConsoleApp"
     language "C"
-    files { "src/*.c" }
-    includedirs { "include", "chaos/include" }
+    files { "game_theory/src/shapley_shubik.c" }
     links { "chaos" }
+    includedirs { "chaos/include" }
 
