@@ -1,5 +1,7 @@
 #include <chaos.h>
 
+#pragma comment(lib, "kernel32.lib")
+
 // https://source.chromium.org/chromium/chromium/src/+/main:base/win/windows_types.h
 typedef void* HANDLE;
 typedef unsigned long DWORD;  // NOLINT(runtime/int)
@@ -43,15 +45,10 @@ IMPORT BOOL WINAPI WriteConsoleA(HANDLE hConsoleOutput, const VOID* lpBuffer,
                                  LPDWORD lpNumberOfCharsWritten,
                                  LPVOID lpReserved);
 
-extern u32 string_length(c8* message) {
-  u32 len = 0;
-  while (message[len] != '\0') ++len;
-  return len;
-}
-
 extern void print(c8* message) {
-  u32 len = string_length(message);
-  WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, len, 0, 0);
+  u64 len = string_length(message);
+  // TODO: maybe bail here on large int.
+  WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (u32)len, 0, 0);
 }
 
 extern _Noreturn void mainCRTStartup(void);

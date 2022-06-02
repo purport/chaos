@@ -1,6 +1,6 @@
 filter { "toolset:clang", "system:windows" }
   buildoptions { "-Weverything -Werror -Wno-unused-macros -Wno-newline-eof -Wno-unused-parameter -Wno-unused-function -Wno-declaration-after-statement", "-ffreestanding", "-nostdinc", "-fno-builtin", "-mno-stack-arg-probe"}
-  linkoptions { "-lkernel32", "-fuse-ld=lld", "-nodefaultlibs", "-nostdlib", "-Xlinker /subsystem:console" }
+  linkoptions { "-fuse-ld=lld", "-nodefaultlibs", "-nostdlib", "-Xlinker /subsystem:console" }
 filter {}
 
 project "chaos"

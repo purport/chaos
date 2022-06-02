@@ -16,9 +16,15 @@ typedef double f64;
 
 #define ASSERT(cond) ((cond) || (__debugbreak(), 0))
 
+
 extern u32 chaos_main(void);
-extern u32 string_length(c8 *message);
 extern void print(c8 *message);
+
+static inline u64 string_length(c8* message) {
+  u64 len = 0;
+  while (message[len] != '\0') ++len;
+  return len;
+}
 
 extern bool u64_to_string(u64 num, u64 length, c8 *result, u64 *number_length);
 extern bool string_to_u64(u64 length, c8 *buffer, u64 *num);
