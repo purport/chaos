@@ -14,13 +14,8 @@ workspace "Project"
     defines { "NDEBUG" }
     optimize "On"
   filter {}
+  includedirs { "chaos/include" }
 
   include "chaos"
-
-  project "game-theory"
-    kind "ConsoleApp"
-    language "C"
-    files { "game_theory/src/shapley_shubik.c" }
-    links { "chaos" }
-    includedirs { "chaos/include" }
+  include "game_theory"
 
