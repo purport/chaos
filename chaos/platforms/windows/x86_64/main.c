@@ -51,5 +51,7 @@ extern void print(c8* message) {
   WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (u32)len, 0, 0);
 }
 
+extern int _fltused;
+int _fltused=0;
 extern _Noreturn void mainCRTStartup(void);
 extern _Noreturn void mainCRTStartup() { ExitProcess(chaos_main()); }

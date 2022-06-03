@@ -35,3 +35,20 @@ extern bool string_to_u64(u64 length, c8 *buffer, u64 *num) {
   return 1;
 }
 
+extern bool f64_to_string(f64 num, u64 length, c8 *result, u64 *number_length) {
+  u64 l;
+  if (num < 0) {
+    num *= -1;
+    result[0] = '-';
+    ++result;
+    --length;
+  }
+  u64 dec = (u64)num;
+  if (!u64_to_string(dec, length, result, &l)) return 0;
+  u64 frac = (u64)((num - (f64)dec) * 10000);
+  result[l++] = '.';
+  if (frac < 10) result[l++] = '0';
+  if (frac < 100) result[l++] = '0';
+  if (frac < 1000) result[l++] = '0';
+  return u64_to_string(frac, length - l, result + l, &l);
+}

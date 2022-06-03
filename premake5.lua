@@ -17,5 +17,6 @@ workspace "Project"
   includedirs { "chaos/include" }
 
   include "chaos"
+  include "optimization"
   include "game_theory"
 
