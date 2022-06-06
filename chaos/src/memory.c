@@ -1,6 +1,6 @@
 #include <chaos.h>
 
-extern void* memset(void* ptr, u32 value, u64 size) {
+extern void* memset(void* ptr, i32 value, u64 size) {
   unsigned char* it = &((unsigned char*)ptr)[0];
   while (size != 0) {
     *it = (unsigned char)value;

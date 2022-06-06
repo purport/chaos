@@ -20,7 +20,7 @@ extern u32 chaos_main(void);
 
 // begin memory
 extern void *memory_realloc(void* address, u64 prev, u64 new);
-extern void *memset(void *ptr, u32 value, u64 size);
+extern void *memset(void *ptr, i32 value, u64 size);
 extern void *memcpy(void *destination, void const *source, u64 size);
 // end memory
 

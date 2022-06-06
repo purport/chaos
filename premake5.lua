@@ -20,5 +20,4 @@ workspace "Project"
   include "chaos"
   include "optimization"
   include "game_theory"
-  include "parser"
 
