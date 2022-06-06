@@ -1,5 +1,5 @@
 filter { "toolset:clang", "system:windows" }
-  buildoptions { "-g -O0", "-Weverything -Werror -Wno-reserved-identifier -Wno-unused-macros -Wno-newline-eof -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-declaration-after-statement", "-ffreestanding", "-nostdinc", "-fno-builtin", "-mno-stack-arg-probe"}
+  buildoptions { "-g -O0", "-dA", "-Weverything -Werror -Wno-reserved-identifier -Wno-unused-macros -Wno-newline-eof -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-declaration-after-statement", "-ffreestanding", "-nostdinc", "-fno-builtin", "-mno-stack-arg-probe"}
   linkoptions { "-g -O0", "-fuse-ld=lld", "-nodefaultlibs", "-nostdlib", "-Xlinker /subsystem:console" }
 filter {}
 
@@ -11,3 +11,10 @@ project "chaos"
   filter { "system:windows" }
     files { "platforms/windows/x86_64/*.c" }
   filter {}
+
+project "chaos-test-memory"
+  kind "ConsoleApp"
+  language "C"
+  includedirs { "include" }
+  files { "test/memory.c" }
+  links {"chaos"}

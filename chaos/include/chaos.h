@@ -18,6 +18,12 @@ typedef double f64;
 
 extern u32 chaos_main(void);
 
+// begin memory
+extern void *memory_realloc(void* address, u64 prev, u64 new);
+extern void *memset(void *ptr, u32 value, u64 size);
+extern void *memcpy(void *destination, void const *source, u64 size);
+// end memory
+
 // begin string
 static inline u64 string_length(c8 *message) {
   u64 len = 0;

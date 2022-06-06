@@ -9,6 +9,7 @@ workspace "Project"
   filter "configurations:debug"
     defines { "DEBUG" }
     symbols "On"
+    optimize "On"
   filter {}
   filter "configurations:release"
     defines { "NDEBUG" }
@@ -19,4 +20,5 @@ workspace "Project"
   include "chaos"
   include "optimization"
   include "game_theory"
+  include "parser"
 

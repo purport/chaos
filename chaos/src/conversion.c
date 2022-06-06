@@ -35,6 +35,7 @@ extern bool string_to_u64(u64 length, c8 *buffer, u64 *num) {
   return 1;
 }
 
+// TODO: better version of this.
 extern bool f64_to_string(f64 num, u64 length, c8 *result, u64 *number_length) {
   u64 l;
   if (num < 0) {

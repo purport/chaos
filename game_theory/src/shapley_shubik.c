@@ -22,7 +22,7 @@ static u32 shapley_shubik_index(u64 count, u32 *weight, u32 *permutation,
 extern u32 chaos_main(void) {
   u32 weights[] = {1, 1, 1, 1, 2, 3};
   u32 permutation[] = {0, 1, 2, 3, 4, 5};
-  u32 winners = shapley_shubik_index(6, weights, permutation, 6, 4);
+  u32 winners = shapley_shubik_index(6, weights, permutation, 6, 5);
 
   c8 buffer[20];
   u64_to_string(winners, 20, buffer, 0);
