@@ -21,4 +21,6 @@ IMPORT _Noreturn void WINAPI ExitProcess(UINT uExitCode);
 extern int _fltused;
 int _fltused = 0;
 extern _Noreturn void mainCRTStartup(void);
-extern _Noreturn void mainCRTStartup() { ExitProcess(chaos_main()); }
+extern _Noreturn void mainCRTStartup() {
+  ExitProcess(chaos_main());
+}

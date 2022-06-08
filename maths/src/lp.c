@@ -95,17 +95,18 @@ static bool linear_programme_solve(u8 stride, u8 constraints, f64 *tableau) {
 
 // clang-format off
 static f64 tableau[] = {
-  1, 2, -3, 1, 0, 23,
-  2, 6, 3, 0, 1, 55,
-  -5, -3, 6, 0,0, 0,
+  -1, -4, 2, 1, 0, 0, 9,
+   1,  2, 4, 0, 1, 0, 4,
+   2,  1,-1, 0, 0, 1, 9,
+  -3, -4, 2, 0, 0, 0, 0,
 };
 // clang-format on
 
 u32 chaos_main() {
 
-  tableau_print(5+1, 2, tableau);
+  tableau_print(6+1, 3, tableau);
   print("\n");
-  linear_programme_solve(5+1, 2, tableau);
+  linear_programme_solve(6+1, 3, tableau);
 
   return 0;
 }

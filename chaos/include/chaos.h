@@ -39,6 +39,14 @@ extern bool f64_to_string(f64 num, u64 length, c8 *result, u64 *number_length);
 // end conversion
 
 // begin algorithm
+static inline u64 max_u64(u64 a, u64 b) {
+  return a >= b ? a : b;
+}
+
+static inline u64 min_u64(u64 a, u64 b) {
+  return a <= b ? a : b;
+}
+
 static inline void swap_u32(u32 *restrict a, u32 *restrict b) {
   u32 temp = *a;
   *a = *b;
