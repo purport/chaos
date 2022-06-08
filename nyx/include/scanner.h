@@ -2,6 +2,7 @@
 #include <chaos.h>
 
 typedef enum {
+  TOKEN_ERROR,
   TOKEN_EOF,
   TOKEN_PLUS,
   TOKEN_PLUS_EQ,
@@ -32,7 +33,7 @@ typedef enum {
 } token;
 
 typedef struct scanner {
-  u8 n;
+  u64 n;
   c8 ch;
   c8* it;
   c8* end;
