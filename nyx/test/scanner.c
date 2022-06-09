@@ -1,67 +1,6 @@
 #include <chaos/check.h>
+#include <chaos/hash.h>
 #include <scanner.h>
-
-static bool match(scanner *self, c8 ch) {
-  if (self->it == self->end) return 0;
-  if (*self->it != ch) return 0;
-  ++self->it;
-  return 1;
-}
-
-static bool is_digit(c8 ch) { return '0' <= ch && ch <= '9'; }
-static bool is_alpha(c8 ch) {
-  return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
-}
-static bool is_alphanum(c8 ch) {
-  return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') || is_digit(ch);
-}
-
-static token scanner_next(scanner *self) {
-  while (self->it != self->end) {
-    c8 ch = *self->it++;
-    if (ch == ' ' || ch == '\t') continue;
-    if (ch == '+') return match(self, '=') ? TOKEN_PLUS_EQ : TOKEN_PLUS;
-    if (ch == '-') return match(self, '=') ? TOKEN_MINUS_EQ : TOKEN_MINUS;
-    if (ch == '/') return match(self, '=') ? TOKEN_DIVIDE_EQ : TOKEN_DIVIDE;
-    if (ch == '*') return match(self, '=') ? TOKEN_MULT_EQ : TOKEN_MULT;
-    if (ch == '!') return match(self, '=') ? TOKEN_NOT_EQ : TOKEN_NOT;
-    if (ch == '<') return match(self, '=') ? TOKEN_LEQ : TOKEN_LT;
-    if (ch == '>') return match(self, '=') ? TOKEN_GEQ : TOKEN_GT;
-    if (ch == ':') return match(self, '=') ? TOKEN_ASSIGN : TOKEN_COLON;
-    if (ch == '(') return TOKEN_PAREN_OPEN;
-    if (ch == ')') return TOKEN_PAREN_CLOSE;
-    if (ch == '{') return TOKEN_BRACE_OPEN;
-    if (ch == '}') return TOKEN_BRACE_CLOSE;
-    if (ch == ',') return TOKEN_COMMA;
-    if (ch == '.') return TOKEN_DOT;
-    if (ch == ';') return TOKEN_END_OF_LINE;
-    if (ch == '=') return TOKEN_EQ;
-    if (is_digit(ch)) {
-      self->n = (u8)(ch - '0');
-      for (; self->it != self->end; ++self->it) {
-        ch = *self->it;
-        if (!is_digit(ch)) break;
-        bool overflow =
-                __builtin_umulll_overflow(self->n, 10, &self->n) ||
-                __builtin_uaddll_overflow(self->n, (u64)(ch - '0'), &self->n);
-        if (overflow) {
-          self->it = self->end;
-          return TOKEN_ERROR;
-        }
-      }
-
-      return TOKEN_DIGIT;
-    }
-    if (is_alpha(ch)) {
-      for (; self->it != self->end; ++self->it) {
-        ch = *self->it;
-        if (!is_alphanum(ch)) break;
-      }
-      return TOKEN_IDENTIFIER;
-    }
-  }
-  return TOKEN_EOF;
-}
 
 static u64 buffer_chunk = 10;
 static u64 buffer_index;
@@ -75,9 +14,198 @@ static scanner fill_buffer(c8 *b) {
   return (scanner){.it = buffer, .end = buffer + buffer_size};
 }
 
+static u32 hash_string(u32 seed, u8 *s) {
+  murmur3 hash = {.value = seed};
+  for (u8 ch = *s++; ch != 0; ch = *s++) {
+    // c8 buf[] = {(c8)ch, '\n', 0};
+    // print(buf);
+    hash_murmur3(&hash, ch);
+  }
+  return hash_murmur3_fin(&hash);
+}
+
+static bool is_keyword(u8 length, c8 **keywords, c8 *tst) {
+  for (u8 i = 0; i != length; ++i) {
+    c8 *k = keywords[i];
+    bool found = 1;
+    for (u8 j = 0; j != 6; ++j) {
+      c8 ch1 = k[j];
+      c8 ch2 = tst[j];
+      if (ch1 != ch2) {
+        found = 0;
+        break;
+      }
+      if (ch1 == '\0' || ch2 == '\0') {
+        break;
+      }
+    }
+    if (found) {
+      // print("got a keyword ");
+      // print(tst);
+      // print("\n");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static bool table_lookup(u8 length, u32 *table, u32 hash) {
+  for (u8 i = 0; i != length; ++i) {
+    if (table[i] == hash) return 1;
+  }
+  return 0;
+}
+static u32 find_hash_seed() {
+#define SIZE 15
+  c8 AND[] = "and";
+  c8 CONST[] = "const";
+  c8 ELSE[] = "else";
+  c8 FN[] = "fn";
+  c8 FOR[] = "for";
+  c8 IF[] = "if";
+  c8 LET[] = "let";
+  c8 NAND[] = "nand";
+  c8 NOR[] = "nor";
+  c8 NOT[] = "not";
+  c8 OR[] = "or";
+  c8 RETURN[] = "return";
+  c8 TYPE[] = "type";
+  c8 WHILE[] = "while";
+  c8 XOR[] = "xor";
+  c8 *keywords[SIZE] = {AND,  NAND,  OR,  NOR, XOR,  NOT,   FN,    IF,
+                        ELSE, CONST, FOR, LET, TYPE, WHILE, RETURN};
+  u32 keywords_size[SIZE] = {0};
+  for (u8 i = 0; i != SIZE; ++i) {
+    u8 *k = (u8 *)keywords[i];
+    keywords_size[i] = (u32)string_length(keywords[i]);
+  }
+
+  for (u32 seed = 1065166; seed != 0xfffffff; seed += 1) {
+    u32 table[SIZE] = {0};
+    u32 indices[SIZE] = {0};
+    bool minimal = 1;
+    for (u8 i = 0; minimal && i != SIZE; ++i) {
+      u32 val = hash_string(seed, (u8 *)keywords[i]);
+      table[i] = val;
+      minimal = indices[val % SIZE] == 0;
+      // if (!minimal) {
+      //   print("not minimal on "); print(keywords[i]); print("\n");
+      // }
+      indices[val % SIZE] = 1;
+    }
+    if (!minimal) continue;
+    print("seed "); print_u64(seed); print(" minimal\n");
+
+    bool collision = 0;
+    u32 val = 0;
+    c8 tst[7] = {0};
+    for (c8 c1 = 'a'; !collision && c1 != '{'; ++c1) {
+      tst[0] = c1;
+      for (c8 c2 = 'a'; !collision && c2 != '{'; ++c2) {
+        tst[1] = c2;
+        tst[2] = 0;
+        if (is_keyword(SIZE, keywords, tst)) continue;
+        val = hash_string(seed, (u8 *)tst);
+        if (table_lookup(SIZE, table, val)) {
+          collision = 1;
+        }
+        for (c8 c3 = 'a'; !collision && c3 != '{'; ++c3) {
+          tst[2] = c3;
+          tst[3] = 0;
+          if (is_keyword(SIZE, keywords, tst)) continue;
+          val = hash_string(seed, (u8 *)tst);
+          if (table_lookup(SIZE, table, val)) {
+            collision = 1;
+          }
+          for (c8 c4 = 'a'; !collision && c4 != '{'; ++c4) {
+            tst[3] = c4;
+            tst[4] = 0;
+            if (is_keyword(SIZE, keywords, tst)) continue;
+            val = hash_string(seed, (u8 *)tst);
+            if (table_lookup(SIZE, table, val)) {
+              collision = 1;
+            }
+            for (c8 c5 = 'a'; !collision && c5 != '{'; ++c5) {
+              tst[4] = c5;
+              tst[5] = 0;
+              if (is_keyword(SIZE, keywords, tst)) continue;
+              val = hash_string(seed, (u8 *)tst);
+              if (table_lookup(SIZE, table, val)) {
+                collision = 1;
+              }
+              for (c8 c6 = 'a'; !collision && c6 != '{'; ++c6) {
+                tst[5] = c6;
+                tst[6] = 0;
+                if (is_keyword(SIZE, keywords, tst)) continue;
+                val = hash_string(seed, (u8 *)tst);
+                if (table_lookup(SIZE, table, val)) {
+                  collision = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!collision) {
+      print("no collisions found\n");
+    }
+    if (!collision) {
+      print("perfect hashes with seed ");
+      print_u64(seed);
+      print("\n");
+
+      u64 max_size = 0;
+      for (u8 i = 0; i != SIZE; ++i) {
+        print("#define ");
+        print("KEYWORD_");
+        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
+          c8 b[] = {*ch - 32, 0};
+          print(b);
+        }
+        print("_HASH ");
+        print_u64(table[i]);
+        print("\n");
+
+        max_size = max_u64(max_size, keywords_size[i]);
+      }
+      print("#define ");
+      print("KEYWORD_MAX_LENGTH");
+      print(" ");
+      print_u64(max_size);
+      print("\n");
+
+      print("typedef enum {\n");
+      for (u8 i = 0; i != SIZE; ++i) {
+        print("KEYWORD_");
+        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
+          c8 b[] = {*ch - 32, 0};
+          print(b);
+        }
+        print(" = ");
+        print_u64(table[i] % SIZE);
+        print(",");
+        print("\n");
+      }
+      print("} keyword;\n");
+
+      return seed;
+    }
+  }
+  // } while (next_permutation(15, perms));
+  return (u32)-1;
+}
+
+#undef FIND_HASHES
+
 u32 chaos_main() {
   scanner s;
   CHECK_START();
+#ifdef FIND_HASHES
+  u32 seed = find_hash_seed();
+  CHECK(seed, !=, (u32)-1);
+#endif
+
   s = fill_buffer("");
   CHECK(scanner_next(&s), ==, TOKEN_EOF);
   CHECK(s.it, ==, buffer + buffer_size);
@@ -95,41 +223,41 @@ u32 chaos_main() {
   CHECK(s.end, ==, buffer + buffer_size);
 
   s = fill_buffer("0 1 2 3 4 5 6 7 8 9");
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 0);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 1);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 2);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 3);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 4);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 5);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 6);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 7);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 8);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 9);
   CHECK(scanner_next(&s), ==, TOKEN_EOF);
   CHECK(s.it, ==, buffer + buffer_size);
   CHECK(s.end, ==, buffer + buffer_size);
 
   s = fill_buffer("123 543");
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 123);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 543);
   CHECK(scanner_next(&s), ==, TOKEN_EOF);
   CHECK(s.it, ==, buffer + buffer_size);
   CHECK(s.end, ==, buffer + buffer_size);
 
   s = fill_buffer("18446744073709551615");
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(s.n, ==, 18446744073709551615ull);
   CHECK(scanner_next(&s), ==, TOKEN_EOF);
   CHECK(s.it, ==, buffer + buffer_size);
@@ -141,13 +269,34 @@ u32 chaos_main() {
   CHECK(s.it, ==, buffer + buffer_size);
   CHECK(s.end, ==, buffer + buffer_size);
 
-  s = fill_buffer("a+ asdf A0 0a");
+  s = fill_buffer("a+ hello A0 0a");
   CHECK(scanner_next(&s), ==, TOKEN_IDENTIFIER);
   CHECK(scanner_next(&s), ==, TOKEN_PLUS);
   CHECK(scanner_next(&s), ==, TOKEN_IDENTIFIER);
   CHECK(scanner_next(&s), ==, TOKEN_IDENTIFIER);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(scanner_next(&s), ==, TOKEN_IDENTIFIER);
+  CHECK(scanner_next(&s), ==, TOKEN_EOF);
+  CHECK(s.it, ==, buffer + buffer_size);
+  CHECK(s.end, ==, buffer + buffer_size);
+
+  s = fill_buffer("and");
+  CHECK(scanner_next(&s), ==, TOKEN_KEYWORD);
+  CHECK(s.keyword, ==, KEYWORD_AND);
+  CHECK(scanner_next(&s), ==, TOKEN_EOF);
+  CHECK(s.it, ==, buffer + buffer_size);
+  CHECK(s.end, ==, buffer + buffer_size);
+
+  s = fill_buffer("return");
+  CHECK(scanner_next(&s), ==, TOKEN_KEYWORD);
+  CHECK(s.keyword, ==, KEYWORD_RETURN);
+  CHECK(scanner_next(&s), ==, TOKEN_EOF);
+  CHECK(s.it, ==, buffer + buffer_size);
+  CHECK(s.end, ==, buffer + buffer_size);
+
+  s = fill_buffer("returns");
+  CHECK(scanner_next(&s), ==, TOKEN_IDENTIFIER);
+  CHECK(scanner_next(&s), ==, TOKEN_EOF);
   CHECK(s.it, ==, buffer + buffer_size);
   CHECK(s.end, ==, buffer + buffer_size);
 
@@ -161,9 +310,9 @@ u32 chaos_main() {
   CHECK(scanner_next(&s), ==, TOKEN_LEQ);
   CHECK(scanner_next(&s), ==, TOKEN_GT);
   CHECK(scanner_next(&s), ==, TOKEN_GEQ);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(scanner_next(&s), ==, TOKEN_MINUS);
-  CHECK(scanner_next(&s), ==, TOKEN_DIGIT);
+  CHECK(scanner_next(&s), ==, TOKEN_NUMBER);
   CHECK(scanner_next(&s), ==, TOKEN_PAREN_OPEN);
   CHECK(scanner_next(&s), ==, TOKEN_PAREN_CLOSE);
   CHECK(scanner_next(&s), ==, TOKEN_BRACE_OPEN);

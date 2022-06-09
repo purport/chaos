@@ -28,15 +28,41 @@ typedef enum {
   TOKEN_COMMA,
   TOKEN_DOT,
   TOKEN_END_OF_LINE,
-  TOKEN_DIGIT,
+  TOKEN_NUMBER,
   TOKEN_IDENTIFIER,
+  TOKEN_KEYWORD,
 } token;
+
+typedef enum {
+  KEYWORD_AND = 7,
+  KEYWORD_NAND = 1,
+  KEYWORD_OR = 13,
+  KEYWORD_NOR = 4,
+  KEYWORD_XOR = 10,
+  KEYWORD_NOT = 5,
+  KEYWORD_FN = 6,
+  KEYWORD_IF = 8,
+  KEYWORD_ELSE = 14,
+  KEYWORD_CONST = 2,
+  KEYWORD_FOR = 11,
+  KEYWORD_LET = 0,
+  KEYWORD_TYPE = 9,
+  KEYWORD_WHILE = 3,
+  KEYWORD_RETURN = 12,
+} keyword;
+
+#define KEYWORD_COUNT 15
 
 typedef struct scanner {
   u64 n;
-  c8 ch;
+  struct {
+    u32 hash;
+    c8* begin;
+    c8* end;
+  } ident;
+  keyword keyword;
   c8* it;
   c8* end;
 } scanner;
 
-extern void scanner_refill(scanner* self);
+extern token scanner_next(scanner* self);

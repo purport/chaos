@@ -1,6 +1,6 @@
 filter { "toolset:clang", "system:windows" }
-  buildoptions { "-g -O0", "-dA", "-Weverything -Werror -Wno-gnu-binary-literal -Wno-reserved-identifier -Wno-unused-macros -Wno-newline-eof -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-declaration-after-statement", "-ffreestanding", "-nostdinc", "-fno-builtin", "-mno-stack-arg-probe"}
-  linkoptions { "-g -O0", "-fuse-ld=lld", "-nodefaultlibs", "-nostdlib", "-Xlinker /subsystem:console" }
+  buildoptions { "-g -O3", "-dA", "-Weverything -Werror -Wno-gnu-binary-literal -Wno-reserved-identifier -Wno-unused-macros -Wno-newline-eof -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-declaration-after-statement", "-ffreestanding", "-nostdinc", "-fno-builtin", "-mno-stack-arg-probe"}
+  linkoptions { "-g -O3", "-fuse-ld=lld", "-nodefaultlibs", "-nostdlib", "-Xlinker /subsystem:console" }
 filter {}
 
 project "chaos"
@@ -22,4 +22,10 @@ project "chaos-test-memory"
   kind "ConsoleApp"
   language "C"
   files { "test/memory.c" }
+  links {"chaos"}
+
+project "chaos-test-hash"
+  kind "ConsoleApp"
+  language "C"
+  files { "test/hash.c" }
   links {"chaos"}
