@@ -14,193 +14,14 @@ static scanner fill_buffer(c8 *b) {
   return (scanner){.it = buffer, .end = buffer + buffer_size};
 }
 
-static u32 hash_string(u32 seed, u8 *s) {
-  murmur3 hash = {.value = seed};
-  for (u8 ch = *s++; ch != 0; ch = *s++) {
-    // c8 buf[] = {(c8)ch, '\n', 0};
-    // print(buf);
-    hash_murmur3(&hash, ch);
-  }
-  return hash_murmur3_fin(&hash);
-}
-
-static bool is_keyword(u8 length, c8 **keywords, c8 *tst) {
-  for (u8 i = 0; i != length; ++i) {
-    c8 *k = keywords[i];
-    bool found = 1;
-    for (u8 j = 0; j != 6; ++j) {
-      c8 ch1 = k[j];
-      c8 ch2 = tst[j];
-      if (ch1 != ch2) {
-        found = 0;
-        break;
-      }
-      if (ch1 == '\0' || ch2 == '\0') {
-        break;
-      }
-    }
-    if (found) {
-      // print("got a keyword ");
-      // print(tst);
-      // print("\n");
-      return 1;
-    }
-  }
-  return 0;
-}
-
-static bool table_lookup(u8 length, u32 *table, u32 hash) {
-  for (u8 i = 0; i != length; ++i) {
-    if (table[i] == hash) return 1;
-  }
-  return 0;
-}
-static u32 find_hash_seed() {
-#define SIZE 15
-  c8 AND[] = "and";
-  c8 CONST[] = "const";
-  c8 ELSE[] = "else";
-  c8 FN[] = "fn";
-  c8 FOR[] = "for";
-  c8 IF[] = "if";
-  c8 LET[] = "let";
-  c8 NAND[] = "nand";
-  c8 NOR[] = "nor";
-  c8 NOT[] = "not";
-  c8 OR[] = "or";
-  c8 RETURN[] = "return";
-  c8 TYPE[] = "type";
-  c8 WHILE[] = "while";
-  c8 XOR[] = "xor";
-  c8 *keywords[SIZE] = {AND,  NAND,  OR,  NOR, XOR,  NOT,   FN,    IF,
-                        ELSE, CONST, FOR, LET, TYPE, WHILE, RETURN};
-  u32 keywords_size[SIZE] = {0};
-  for (u8 i = 0; i != SIZE; ++i) {
-    u8 *k = (u8 *)keywords[i];
-    keywords_size[i] = (u32)string_length(keywords[i]);
-  }
-
-  for (u32 seed = 1065166; seed != 0xfffffff; seed += 1) {
-    u32 table[SIZE] = {0};
-    u32 indices[SIZE] = {0};
-    bool minimal = 1;
-    for (u8 i = 0; minimal && i != SIZE; ++i) {
-      u32 val = hash_string(seed, (u8 *)keywords[i]);
-      table[i] = val;
-      minimal = indices[val % SIZE] == 0;
-      // if (!minimal) {
-      //   print("not minimal on "); print(keywords[i]); print("\n");
-      // }
-      indices[val % SIZE] = 1;
-    }
-    if (!minimal) continue;
-    print("seed "); print_u64(seed); print(" minimal\n");
-
-    bool collision = 0;
-    u32 val = 0;
-    c8 tst[7] = {0};
-    for (c8 c1 = 'a'; !collision && c1 != '{'; ++c1) {
-      tst[0] = c1;
-      for (c8 c2 = 'a'; !collision && c2 != '{'; ++c2) {
-        tst[1] = c2;
-        tst[2] = 0;
-        if (is_keyword(SIZE, keywords, tst)) continue;
-        val = hash_string(seed, (u8 *)tst);
-        if (table_lookup(SIZE, table, val)) {
-          collision = 1;
-        }
-        for (c8 c3 = 'a'; !collision && c3 != '{'; ++c3) {
-          tst[2] = c3;
-          tst[3] = 0;
-          if (is_keyword(SIZE, keywords, tst)) continue;
-          val = hash_string(seed, (u8 *)tst);
-          if (table_lookup(SIZE, table, val)) {
-            collision = 1;
-          }
-          for (c8 c4 = 'a'; !collision && c4 != '{'; ++c4) {
-            tst[3] = c4;
-            tst[4] = 0;
-            if (is_keyword(SIZE, keywords, tst)) continue;
-            val = hash_string(seed, (u8 *)tst);
-            if (table_lookup(SIZE, table, val)) {
-              collision = 1;
-            }
-            for (c8 c5 = 'a'; !collision && c5 != '{'; ++c5) {
-              tst[4] = c5;
-              tst[5] = 0;
-              if (is_keyword(SIZE, keywords, tst)) continue;
-              val = hash_string(seed, (u8 *)tst);
-              if (table_lookup(SIZE, table, val)) {
-                collision = 1;
-              }
-              for (c8 c6 = 'a'; !collision && c6 != '{'; ++c6) {
-                tst[5] = c6;
-                tst[6] = 0;
-                if (is_keyword(SIZE, keywords, tst)) continue;
-                val = hash_string(seed, (u8 *)tst);
-                if (table_lookup(SIZE, table, val)) {
-                  collision = 1;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    if (!collision) {
-      print("no collisions found\n");
-    }
-    if (!collision) {
-      print("perfect hashes with seed ");
-      print_u64(seed);
-      print("\n");
-
-      u64 max_size = 0;
-      for (u8 i = 0; i != SIZE; ++i) {
-        print("#define ");
-        print("KEYWORD_");
-        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
-          c8 b[] = {*ch - 32, 0};
-          print(b);
-        }
-        print("_HASH ");
-        print_u64(table[i]);
-        print("\n");
-
-        max_size = max_u64(max_size, keywords_size[i]);
-      }
-      print("#define ");
-      print("KEYWORD_MAX_LENGTH");
-      print(" ");
-      print_u64(max_size);
-      print("\n");
-
-      print("typedef enum {\n");
-      for (u8 i = 0; i != SIZE; ++i) {
-        print("KEYWORD_");
-        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
-          c8 b[] = {*ch - 32, 0};
-          print(b);
-        }
-        print(" = ");
-        print_u64(table[i] % SIZE);
-        print(",");
-        print("\n");
-      }
-      print("} keyword;\n");
-
-      return seed;
-    }
-  }
-  // } while (next_permutation(15, perms));
-  return (u32)-1;
-}
 
 #undef FIND_HASHES
+static u32 find_hash_seed(void);
 
 u32 chaos_main() {
   scanner s;
   CHECK_START();
+  // TODO: put this into a utility exe
 #ifdef FIND_HASHES
   u32 seed = find_hash_seed();
   CHECK(seed, !=, (u32)-1);
@@ -334,4 +155,182 @@ u32 chaos_main() {
   CHECK(s.end, ==, buffer + buffer_size);
 
   return CHECK_END();
+}
+
+
+// TODO: clean up this stuff and put into utiltiy.
+static u32 hash_string(u32 seed, u8 *s) {
+  murmur3 hash = {.value = seed};
+  for (u8 ch = *s++; ch != 0; ch = *s++) {
+    // c8 buf[] = {(c8)ch, '\n', 0};
+    // print(buf);
+    hash_murmur3(&hash, ch);
+  }
+  return hash_murmur3_fin(&hash);
+}
+
+static bool is_keyword(u8 length, c8 **keywords, c8 *tst) {
+  for (u8 i = 0; i != length; ++i) {
+    c8 *k = keywords[i];
+    bool found = 1;
+    for (u8 j = 0; j != 6; ++j) {
+      c8 ch1 = k[j];
+      c8 ch2 = tst[j];
+      if (ch1 != ch2) {
+        found = 0;
+        break;
+      }
+      if (ch1 == '\0' || ch2 == '\0') {
+        break;
+      }
+    }
+    if (found) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static bool table_lookup(u8 length, u32 *table, u32 hash) {
+  for (u8 i = 0; i != length; ++i) {
+    if (table[i] == hash) return 1;
+  }
+  return 0;
+}
+
+static u32 find_hash_seed() {
+#define SIZE 15
+  c8 AND[] = "and";
+  c8 CONST[] = "const";
+  c8 ELSE[] = "else";
+  c8 FN[] = "fn";
+  c8 FOR[] = "for";
+  c8 IF[] = "if";
+  c8 LET[] = "let";
+  c8 NAND[] = "nand";
+  c8 NOR[] = "nor";
+  c8 NOT[] = "not";
+  c8 OR[] = "or";
+  c8 RETURN[] = "return";
+  c8 TYPE[] = "type";
+  c8 WHILE[] = "while";
+  c8 XOR[] = "xor";
+  c8 *keywords[SIZE] = {AND,  NAND,  OR,  NOR, XOR,  NOT,   FN,    IF,
+                        ELSE, CONST, FOR, LET, TYPE, WHILE, RETURN};
+  u32 keywords_size[SIZE] = {0};
+  for (u8 i = 0; i != SIZE; ++i) {
+    u8 *k = (u8 *)keywords[i];
+    keywords_size[i] = (u32)string_length(keywords[i]);
+  }
+
+  for (u32 seed = 1065166; seed != 0xfffffff; seed += 1) {
+    u32 table[SIZE] = {0};
+    u32 indices[SIZE] = {0};
+    bool minimal = 1;
+    for (u8 i = 0; minimal && i != SIZE; ++i) {
+      u32 val = hash_string(seed, (u8 *)keywords[i]);
+      table[i] = val;
+      minimal = indices[val % SIZE] == 0;
+      indices[val % SIZE] = 1;
+    }
+    if (!minimal) continue;
+    print("seed "); print_u64(seed); print(" minimal\n");
+
+    bool collision = 0;
+    u32 val = 0;
+    c8 tst[7] = {0};
+    for (c8 c1 = 'a'; !collision && c1 != '{'; ++c1) {
+      tst[0] = c1;
+      for (c8 c2 = 'a'; !collision && c2 != '{'; ++c2) {
+        tst[1] = c2;
+        tst[2] = 0;
+        if (is_keyword(SIZE, keywords, tst)) continue;
+        val = hash_string(seed, (u8 *)tst);
+        if (table_lookup(SIZE, table, val)) {
+          collision = 1;
+        }
+        for (c8 c3 = 'a'; !collision && c3 != '{'; ++c3) {
+          tst[2] = c3;
+          tst[3] = 0;
+          if (is_keyword(SIZE, keywords, tst)) continue;
+          val = hash_string(seed, (u8 *)tst);
+          if (table_lookup(SIZE, table, val)) {
+            collision = 1;
+          }
+          for (c8 c4 = 'a'; !collision && c4 != '{'; ++c4) {
+            tst[3] = c4;
+            tst[4] = 0;
+            if (is_keyword(SIZE, keywords, tst)) continue;
+            val = hash_string(seed, (u8 *)tst);
+            if (table_lookup(SIZE, table, val)) {
+              collision = 1;
+            }
+            for (c8 c5 = 'a'; !collision && c5 != '{'; ++c5) {
+              tst[4] = c5;
+              tst[5] = 0;
+              if (is_keyword(SIZE, keywords, tst)) continue;
+              val = hash_string(seed, (u8 *)tst);
+              if (table_lookup(SIZE, table, val)) {
+                collision = 1;
+              }
+              for (c8 c6 = 'a'; !collision && c6 != '{'; ++c6) {
+                tst[5] = c6;
+                tst[6] = 0;
+                if (is_keyword(SIZE, keywords, tst)) continue;
+                val = hash_string(seed, (u8 *)tst);
+                if (table_lookup(SIZE, table, val)) {
+                  collision = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!collision) {
+      print("no collisions found\n");
+    }
+    if (!collision) {
+      print("perfect hashes with seed ");
+      print_u64(seed);
+      print("\n");
+
+      u64 max_size = 0;
+      for (u8 i = 0; i != SIZE; ++i) {
+        print("#define ");
+        print("KEYWORD_");
+        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
+          c8 b[] = {*ch - 32, 0};
+          print(b);
+        }
+        print("_HASH ");
+        print_u64(table[i]);
+        print("\n");
+
+        max_size = max_u64(max_size, keywords_size[i]);
+      }
+      print("#define ");
+      print("KEYWORD_MAX_LENGTH");
+      print(" ");
+      print_u64(max_size);
+      print("\n");
+
+      print("typedef enum {\n");
+      for (u8 i = 0; i != SIZE; ++i) {
+        print("KEYWORD_");
+        for (c8 *ch = keywords[i]; *ch != '\0'; ++ch) {
+          c8 b[] = {*ch - 32, 0};
+          print(b);
+        }
+        print(" = ");
+        print_u64(table[i] % SIZE);
+        print(",");
+        print("\n");
+      }
+      print("} keyword;\n");
+
+      return seed;
+    }
+  }
+  return (u32)-1;
 }
