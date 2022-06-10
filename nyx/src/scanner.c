@@ -83,6 +83,7 @@ extern token scanner_next(scanner *self) {
       self->ident.end = self->it;
       self->ident.hash = hash_murmur3_fin(&hash);
       if ((self->ident.end - self->it) <= KEYWORD_MAX_LENGTH) {
+
         switch (self->ident.hash) {
           case KEYWORD_AND_HASH:
           case KEYWORD_NAND_HASH:
