@@ -18,5 +18,3 @@ workspace "Project"
 
   include "chaos"
   include "nyx"
-  include "maths"
-
